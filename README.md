@@ -10,17 +10,17 @@ notification.
 You will need to create a config file, ~/.imap-actiond.yaml, with the following
 layout:
 
-  server: imap.example.com
-  ssl: true
-  ignore_cert_errors: true
-
-  username: maurice
-  password: 01189998819991197253
-
-  rules:
-    - subject: "nagios notifica"
-      from: "nagios@example.com"
-      command: "aplay -q /usr/share/sounds/ekiga/voicemail.wav"
+    server: imap.example.com
+    ssl: true
+    ignore_cert_errors: true
+    
+    username: maurice
+    password: 01189998819991197253
+    
+    rules:
+      - subject: "nagios notifica"
+        from: "nagios@example.com"
+        command: "aplay -q /usr/share/sounds/ekiga/voicemail.wav"
 
 Valid rule fields are:
 
