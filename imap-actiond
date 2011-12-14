@@ -1,0 +1,68 @@
+#!/usr/bin/ruby
+
+require 'net/imap'
+require 'yaml'
+
+config_path = "#{ENV['HOME']}/.imap-actiond.yaml"
+
+config = YAML::load File.read( config_path )
+
+ssl_opts = false
+if config['ssl']
+  ssl_opts = true
+  if config['ignore_cert_errors']
+    ssl_opts = {
+      :verify_mode => OpenSSL::SSL::VERIFY_NONE
+    }
+  end
+end
+
+imap = Net::IMAP.new config['server'], { :ssl => ssl_opts }
+
+puts "Connected"
+imap.authenticate 'LOGIN', config['username'], config['password']
+puts "Authenticated"
+
+imap.examine 'INBOX'
+
+VALID_FIELDS = %w{body cc from subject to}
+
+rules = []
+
+Rule = Struct.new :search, :command
+
+rules = config['rules'].map do |c|
+  c = c.dup
+  rule = Rule.new
+  rule.command = c.delete 'command'
+  rule.search = ["UNSEEN"]
+  c.each do |field,value|
+    raise "Invalid field: #{field}" unless VALID_FIELDS.member? field
+    rule.search += [ field.upcase, value ]
+  end
+  rule
+end
+
+handled = {}
+
+loop do
+  imap.idle do |event|
+    puts event.raw_data
+    next unless event.is_a? Net::IMAP::UntaggedResponse
+    next unless event.name == "EXISTS"
+    imap.idle_done
+  end
+
+  rules.each do |rule|
+    matched = false
+    imap.search( rule.search ).each do |message_id|
+      uid = imap.fetch( message_id, "UID" )[0].attr["UID"]
+      puts "Matched #{uid}"
+      handled[uid] = true
+      matched = true
+    end
+    next unless matched
+    puts "RUNNING COMMAND"
+    system rule.command
+  end
+end
